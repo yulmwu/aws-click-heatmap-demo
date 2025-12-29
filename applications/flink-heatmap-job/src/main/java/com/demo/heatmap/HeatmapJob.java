@@ -22,12 +22,27 @@ public class HeatmapJob {
     private static final int GRID_SIZE = 20;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * Helper to get property from environment variables or system properties.
+     * MSF passes FlinkApplicationProperties as both system properties and env vars.
+     * Try system property first, then environment variable.
+     */
+    private static String getProperty(String key, String defaultValue) {
+        String value = System.getProperty(key);
+        if (value == null || value.isEmpty()) {
+            value = System.getenv(key);
+        }
+        return (value != null && !value.isEmpty()) ? value : defaultValue;
+    }
+
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(60000);
 
-        String streamArn = System.getenv().getOrDefault("KINESIS_STREAM_ARN", 
+        // Read from environment variables (MSF passes via FlinkApplicationProperties)
+        String streamArn = getProperty("KINESIS_STREAM_ARN", 
             "arn:aws:kinesis:us-east-1:123456789012:stream/demo");
+        String awsRegion = getProperty("AWS_REGION", "ap-northeast-2");
         
         KinesisStreamsSource<String> source =
             KinesisStreamsSource.<String>builder()
@@ -68,7 +83,7 @@ public class HeatmapJob {
                     return agg1;
                 });
 
-        String outputPath = System.getenv().getOrDefault("CURATED_S3_PATH", "s3://bucket/curated/");
+        String outputPath = getProperty("CURATED_S3_PATH", "s3://bucket/curated/");
         if (!outputPath.endsWith("/")) outputPath += "/";
         outputPath += "curated_heatmap/";
         
