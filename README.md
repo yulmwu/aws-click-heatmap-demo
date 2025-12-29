@@ -70,8 +70,8 @@ Create `applications/heatmap-click-producer/.env` based on `.env.example`:
 | `VITE_AWS_REGION`            | `aws_region`          | AWS region (e.g., `ap-northeast-2`)             |
 | `VITE_KINESIS_STREAM_NAME`   | `kinesis_stream_name` | Kinesis Data Stream name                        |
 | `VITE_PAGE_ID`               | N/A                   | Page identifier for click events (app-specific) |
-| `VITE_AWS_ACCESS_KEY_ID`     | N/A                   | AWS access key (from IAM user/role)             |
-| `VITE_AWS_SECRET_ACCESS_KEY` | N/A                   | AWS secret key (from IAM user/role)             |
+| `VITE_AWS_ACCESS_KEY_ID`     | N/A                   | AWS access key with full permissions            |
+| `VITE_AWS_SECRET_ACCESS_KEY` | N/A                   | AWS secret key with full permissions            |
 
 **Get Terraform outputs:**
 
@@ -93,15 +93,15 @@ npm run dev  # http://localhost:5173
 
 Create `applications/heatmap-athena-viewer/.env` based on `.env.example`:
 
-| Environment Variable         | Terraform Output        | Description                                             |
-| ---------------------------- | ----------------------- | ------------------------------------------------------- |
-| `VITE_AWS_REGION`            | `aws_region`            | AWS region (e.g., `ap-northeast-2`)                     |
-| `VITE_ATHENA_WORKGROUP`      | `athena_workgroup_name` | Athena workgroup name                                   |
-| `VITE_GLUE_DATABASE`         | `glue_database_name`    | Glue database name                                      |
-| `VITE_GLUE_TABLE`            | N/A                     | Glue table name (created by Glue Crawler)               |
-| `VITE_AWS_ACCESS_KEY_ID`     | N/A                     | AWS access key (from IAM user/role)                     |
-| `VITE_AWS_SECRET_ACCESS_KEY` | N/A                     | AWS secret key (from IAM user/role)                     |
-| `VITE_AWS_SESSION_TOKEN`     | N/A                     | AWS session token (optional, for temporary credentials) |
+| Environment Variable         | Terraform Output        | Description                                  |
+| ---------------------------- | ----------------------- | -------------------------------------------- |
+| `VITE_AWS_REGION`            | `aws_region`            | AWS region (e.g., `ap-northeast-2`)          |
+| `VITE_ATHENA_WORKGROUP`      | `athena_workgroup_name` | Athena workgroup name                        |
+| `VITE_GLUE_DATABASE`         | `glue_database_name`    | Glue database name                           |
+| `VITE_GLUE_TABLE`            | N/A                     | Glue table name (e.g., `curated_heatmap`)    |
+| `VITE_AWS_ACCESS_KEY_ID`     | N/A                     | AWS access key with full permissions         |
+| `VITE_AWS_SECRET_ACCESS_KEY` | N/A                     | AWS secret key with full permissions         |
+| `VITE_AWS_SESSION_TOKEN`     | N/A                     | AWS session token (optional, leave empty)    |
 
 **Run Glue Crawler (after data is collected):**
 
@@ -130,8 +130,6 @@ npm run dev  # http://localhost:5174
 aws kinesisanalyticsv2 describe-application \
   --application-name $(terraform output -raw msf_application_name)
 
-aws logs tail /aws/kinesis-analytics/$(terraform output -raw msf_application_name) --follow
-
 aws s3 ls s3://$(terraform output -raw s3_curated_bucket)/curated/ --recursive
 
 aws glue get-tables --database-name $(terraform output -raw glue_database_name)
@@ -156,6 +154,10 @@ terraform destroy -var-file="env/dev.tfvars"
 terraform output athena_workgroup_name
 terraform output glue_database_name
 terraform output aws_region
+
+# List tables in Glue database
+aws glue get-tables --database-name $(terraform output -raw glue_database_name) \
+  --query 'TableList[*].Name' --output text
 ```
 
-**Note:** The `VITE_GLUE_TABLE` must be set to the table name created by the Glue Crawler after it processes the curated data in S3. Run the Glue Crawler and check the Glue Console for the table name.
+**Note:** The `VITE_GLUE_TABLE` value should be `curated_heatmap` (the crawler auto-creates this table name based on the S3 folder structure). If data is being written by Flink to `s3://BUCKET/curated/curated_heatmap/`, the Glue Crawler will create a table named `curated_heatmap`.
