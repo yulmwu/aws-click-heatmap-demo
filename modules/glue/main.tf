@@ -40,18 +40,19 @@ data "aws_iam_policy_document" "policy" {
       "glue:CreateTable",
       "glue:UpdateTable",
       "glue:GetDatabase",
-      "glue:GetDatabases",
       "glue:GetTable",
       "glue:GetTables",
       "glue:BatchCreatePartition",
-      "glue:BatchDeletePartition",
-      "glue:BatchGetPartition",
       "glue:CreatePartition",
       "glue:UpdatePartition",
       "glue:GetPartition",
       "glue:GetPartitions"
     ]
-    resources = ["*"]
+    resources = [
+      "arn:aws:glue:*:*:catalog",
+      "arn:aws:glue:*:*:database/${var.database_name}",
+      "arn:aws:glue:*:*:table/${var.database_name}/*"
+    ]
   }
 }
 

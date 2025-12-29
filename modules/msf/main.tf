@@ -17,24 +17,11 @@ resource "aws_iam_role" "msf_role" {
 
 data "aws_iam_policy_document" "msf_policy" {
   statement {
-    sid    = "S3ReadArtifacts"
+    sid    = "S3Access"
     effect = "Allow"
     actions = [
       "s3:GetObject",
-      "s3:ListBucket"
-    ]
-    resources = [
-      "arn:aws:s3:::${var.artifact_bucket_name}",
-      "arn:aws:s3:::${var.artifact_bucket_name}/*"
-    ]
-  }
-
-  statement {
-    sid    = "S3WriteCurated"
-    effect = "Allow"
-    actions = [
       "s3:PutObject",
-      "s3:GetObject",
       "s3:ListBucket",
       "s3:DeleteObject"
     ]
@@ -57,6 +44,20 @@ data "aws_iam_policy_document" "msf_policy" {
       "kinesis:SubscribeToShard"
     ]
     resources = [var.kinesis_stream_arn]
+  }
+
+  statement {
+    sid    = "CloudWatchLogs"
+    effect = "Allow"
+    actions = [
+      "logs:PutLogEvents",
+      "logs:CreateLogStream",
+      "logs:CreateLogGroup",
+      "logs:DescribeLogStreams"
+    ]
+    resources = [
+      "arn:aws:logs:*:*:log-group:/aws/kinesis-analytics/${var.app_name}:*"
+    ]
   }
 }
 
