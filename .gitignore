@@ -33,3 +33,6 @@
 **/target/
 
 **/node_modules/
+
+STEPBYSTEP.md
+TERRAFORM_DEPLOY.md
