@@ -1,8 +1,3 @@
-variable "name_prefix" {
-  type        = string
-  description = "Prefix for resource naming"
-}
-
 variable "athena_workgroup_name" {
   type        = string
   description = "Athena workgroup name"

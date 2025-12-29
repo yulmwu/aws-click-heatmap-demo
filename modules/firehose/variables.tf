@@ -8,11 +8,6 @@ variable "kinesis_stream_arn" {
   description = "ARN of source Kinesis stream"
 }
 
-variable "raw_bucket_name" {
-  type        = string
-  description = "Name of raw data S3 bucket"
-}
-
 variable "raw_bucket_arn" {
   type        = string
   description = "ARN of raw data S3 bucket"

@@ -18,9 +18,6 @@ provider "aws" {
   region = var.aws_region
 }
 
-data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
-
 resource "random_id" "suffix" {
   byte_length = 2
 }
@@ -57,7 +54,6 @@ module "firehose" {
   name_prefix             = local.name_prefix
   kinesis_stream_arn      = module.kinesis.stream_arn
   raw_bucket_arn          = module.s3.raw_bucket_arn
-  raw_bucket_name         = module.s3.raw_bucket_name
   raw_prefix              = var.raw_prefix
   buffer_size_mb          = var.firehose_buffer_size_mb
   buffer_interval_seconds = var.firehose_buffer_interval
@@ -68,7 +64,6 @@ module "firehose" {
 module "athena" {
   source = "./modules/athena"
 
-  name_prefix           = local.name_prefix
   athena_workgroup_name = var.athena_workgroup_name
   results_bucket_name   = module.s3.athena_results_bucket_name
   tags                  = local.tags

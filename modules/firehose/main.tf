@@ -1,5 +1,3 @@
-data "aws_caller_identity" "current" {}
-
 resource "aws_iam_role" "firehose_role" {
   name               = "${var.name_prefix}-firehose-role"
   assume_role_policy = data.aws_iam_policy_document.firehose_assume.json
@@ -40,6 +38,7 @@ data "aws_iam_policy_document" "firehose_policy" {
     effect = "Allow"
     actions = [
       "kinesis:DescribeStream",
+      "kinesis:DescribeStreamSummary",
       "kinesis:GetShardIterator",
       "kinesis:GetRecords",
       "kinesis:ListShards"
