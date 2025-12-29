@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Heatmap Click Producer (Kinesis)</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                background: #fff;
+                color: #333;
+            }
+            .container {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .card {
+                background: #f9f9f9;
+                border: 1px solid #ddd;
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+            .row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+            }
+            .hint {
+                color: #666;
+                font-size: 13px;
+                margin: 10px 0;
+            }
+            .btn {
+                background: #007bff;
+                color: #fff;
+                border: none;
+                padding: 10px 15px;
+                cursor: pointer;
+            }
+            .btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            .btn2 {
+                background: #6c757d;
+            }
+            .kv {
+                font-family: monospace;
+                font-size: 12px;
+                background: #f5f5f5;
+                border: 1px solid #ddd;
+                padding: 10px;
+                overflow: auto;
+                white-space: pre-wrap;
+            }
+            #stage {
+                width: 100%;
+                height: 400px;
+                border: 1px solid #ccc;
+                background: #fafafa;
+                position: relative;
+                cursor: crosshair;
+            }
+            #dot {
+                position: absolute;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #dc3545;
+                transform: translate(-50%, -50%);
+                pointer-events: none;
+                display: none;
+            }
+            .top {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+            }
+            .title {
+                font-size: 18px;
+                font-weight: bold;
+            }
+            .sub {
+                font-size: 13px;
+                color: #666;
+            }
+            input {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ccc;
+                box-sizing: border-box;
+            }
+            input:disabled {
+                background: #eee;
+            }
+            label {
+                font-size: 12px;
+                color: #555;
+                display: block;
+                margin-bottom: 5px;
+            }
+            .grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="top">
+                <div>
+                    <div class="title">Heatmap Click Producer → Kinesis Data Streams</div>
+                    <div class="sub">Click on the stage to send events via AWS SDK (browser). Demo-only.</div>
+                </div>
+                <div style="display: flex; gap: 10px">
+                    <button id="btnTest" class="btn btn2">Send test event</button>
+                    <button id="btnToggle" class="btn">Start sending</button>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="card">
+                    <div id="stage">
+                        <div id="dot"></div>
+                    </div>
+                    <p class="hint" style="margin-top: 10px">
+                        Each click sends one record to Kinesis. Payload includes x/y, viewport, dpr, pageId, eventTime.
+                    </p>
+                    <p class="hint">
+                        If your browser blocks requests due to CORS, run the same code from a backend (Next.js API route
+                        / Lambda / API Gateway).
+                    </p>
+                </div>
+
+                <div class="card">
+                    <div class="grid">
+                        <div>
+                            <label>AWS Region</label>
+                            <input id="region" />
+                        </div>
+                        <div>
+                            <label>Kinesis Stream Name</label>
+                            <input id="stream" />
+                        </div>
+                        <div>
+                            <label>Page ID</label>
+                            <input id="pageId" />
+                        </div>
+                        <div>
+                            <label>Status</label>
+                            <input id="status" disabled />
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 12px">
+                        <label>Last event / response</label>
+                        <pre id="log" class="kv">{}</pre>
+                    </div>
+
+                    <div style="margin-top: 12px" class="hint">
+                        Env vars are read from <code>.env</code> (Vite). Copy <code>.env.example</code> →
+                        <code>.env</code> and set values.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script type="module" src="/src/main.ts"></script>
+    </body>
+</html>
