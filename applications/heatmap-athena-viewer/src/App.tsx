@@ -41,7 +41,7 @@ export default function App() {
     const [database, setDatabase] = useState(DATABASE)
     const [table, setTable] = useState(TABLE)
     const [gridSize, setGridSize] = useState(20)
-    const [query, setQuery] = useState(defaultQuery(DATABASE || 'heatmap_demo', TABLE || 'REPLACE_ME'))
+    const [query, setQuery] = useState(defaultQuery(DATABASE || 'heatmap_demo', TABLE || 'curated_heatmap'))
 
     const [status, setStatus] = useState('Idle')
     const [error, setError] = useState('')
