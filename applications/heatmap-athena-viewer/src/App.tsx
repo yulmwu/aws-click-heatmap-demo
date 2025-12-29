@@ -24,11 +24,11 @@ function credsOk() {
 function defaultQuery(db: string, table: string) {
     return `
 SELECT
-  CAST(gridx AS INTEGER) AS grid_x,
-  CAST(gridy AS INTEGER) AS grid_y,
-  SUM(CAST(clicks AS BIGINT)) AS clicks
+  gridx AS grid_x,
+  gridy AS grid_y,
+  SUM(clicks) AS clicks
 FROM "${db}"."${table}"
-WHERE from_unixtime(CAST(windowend AS BIGINT) / 1000) >= date_add('hour', -1, current_timestamp)
+WHERE from_unixtime(windowend / 1000) >= date_add('hour', -1, current_timestamp)
 GROUP BY 1,2
 ORDER BY clicks DESC
 LIMIT 2000;
@@ -121,9 +121,10 @@ export default function App() {
         const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true })
         const out: Row[] = []
         for (const r of parsed.data as any[]) {
-            const gx = Number(r.grid_x ?? r.gridx ?? r.gridx)
-            const gy = Number(r.grid_y ?? r.gridy ?? r.gridy)
-            const clicks = Number(r.clicks ?? r.sum ?? r.count)
+            // Parquet columns are lowercase: gridx, gridy, clicks
+            const gx = Number(r.grid_x ?? r.gridx ?? 0)
+            const gy = Number(r.grid_y ?? r.gridy ?? 0)
+            const clicks = Number(r.clicks ?? 0)
             if (Number.isFinite(gx) && Number.isFinite(gy) && Number.isFinite(clicks)) {
                 out.push({ grid_x: gx, grid_y: gy, clicks })
             }

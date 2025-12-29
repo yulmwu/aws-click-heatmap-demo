@@ -1,4 +1,3 @@
-
 package com.demo.heatmap;
 
 public class HeatmapAggregate {
