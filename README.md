@@ -13,12 +13,12 @@ aws dynamodb create-table --table-name TerraformStateLock \
 ## Deployment
 
 ```shell
-cp env/dev.tfvars.example env/dev.tfvars
+cp env/example.tfvars env/dev.tfvars
 cp env/example.backend.hcl env/dev.backend.hcl
 
 # If you need prod and staging environments, uncomment the lines below
-# cp env/prod.tfvars.example env/prod.tfvars
-# cp env/staging.tfvars.example env/staging.tfvars
+# cp env/example.tfvars env/prod.tfvars
+# cp env/example.tfvars env/staging.tfvars
 # cp env/example.backend.hcl env/prod.backend.hcl
 # cp env/example.backend.hcl env/staging.backend.hcl
 
@@ -29,7 +29,7 @@ terraform output
 terraform destroy -var-file="env/dev.tfvars" --auto-approve
 ```
 
-For detailed options(variables), see [`env/dev.tfvars.example`](env/dev.tfvars.example).
+For detailed options(variables), see [env/example.tfvars](env/example.tfvars).
 
 ![Architecture Diagram](assets/architecture.png)
 
@@ -54,6 +54,11 @@ terraform apply -var-file="env/dev.tfvars"
 aws kinesisanalyticsv2 start-application \
   --application-name $(terraform output -raw msf_application_name) \
   --run-configuration '{}'
+
+# Wait for MSF application to be in RUNNING state (can take 2-3 minutes)
+aws kinesisanalyticsv2 describe-application \
+  --application-name $(terraform output -raw msf_application_name) \
+  --query 'ApplicationDetail.ApplicationStatus'
 ```
 
 ## heatmap-click-producer
@@ -102,6 +107,12 @@ Create `applications/heatmap-athena-viewer/.env` based on `.env.example`:
 
 ```shell
 aws glue start-crawler --name $(terraform output -raw glue_curated_crawler_name)
+
+aws glue get-crawler --name $(terraform output -raw glue_curated_crawler_name) \
+  --query 'Crawler.State'
+
+aws glue get-tables --database-name $(terraform output -raw glue_database_name) \
+  --query 'TableList[*].Name'
 ```
 
 **Setup and run:**
