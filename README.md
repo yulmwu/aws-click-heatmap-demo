@@ -1,3 +1,17 @@
+## Prerequisites
+
+```shell
+# Setup Terraform backend (first time only)
+
+aws s3 mb s3://heatmap-demo-terraform-state --region ap-northeast-2
+aws dynamodb create-table --table-name TerraformStateLock \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST --region ap-northeast-2
+```
+
+## Deployment
+
 ```shell
 cp env/dev.tfvars.example env/dev.tfvars
 cp env/example.backend.hcl env/dev.backend.hcl
@@ -24,22 +38,22 @@ _Draw.io file: [assets/architecture.drawio](assets/architecture.drawio)_
 ## Build Flink Application Artifact
 
 ```shell
-# 1. Maven build
 cd applications/flink-heatmap-job
 mvn clean package
 
-# 2. ZIP the JAR
 cd target
 zip flink-heatmap-job-1.0.0.zip flink-heatmap-job-1.0.0.jar
 
-# 3. Copy to Terraform module artifacts directory
-mkdir -p ../../../terraform/modules/msf/artifacts
-cp flink-heatmap-job-1.0.0.zip ../../../terraform/modules/msf/artifacts/
+mkdir -p ../../../modules/msf/artifacts
+cp flink-heatmap-job-1.0.0.zip ../../../modules/msf/artifacts/
 
-# 4. Deploy with Terraform
-cd ../../../terraform
+cd ../../..
 terraform init -backend-config="env/dev.backend.hcl"
-terraform apply -var-file="env/dev.tfvars" --auto-approve
+terraform apply -var-file="env/dev.tfvars"
+
+aws kinesisanalyticsv2 start-application \
+  --application-name $(terraform output -raw msf_application_name) \
+  --run-configuration '{}'
 ```
 
 ## heatmap-click-producer
@@ -61,6 +75,15 @@ terraform output kinesis_stream_name
 terraform output aws_region
 ```
 
+**Setup and run:**
+
+```shell
+cd applications/heatmap-click-producer
+cp .env.example .env  # Edit
+npm install
+npm run dev  # http://localhost:5173
+```
+
 ## heatmap-athena-viewer
 
 Create `applications/heatmap-athena-viewer/.env` based on `.env.example`:
@@ -74,6 +97,47 @@ Create `applications/heatmap-athena-viewer/.env` based on `.env.example`:
 | `VITE_AWS_ACCESS_KEY_ID`     | N/A                     | AWS access key (from IAM user/role)                     |
 | `VITE_AWS_SECRET_ACCESS_KEY` | N/A                     | AWS secret key (from IAM user/role)                     |
 | `VITE_AWS_SESSION_TOKEN`     | N/A                     | AWS session token (optional, for temporary credentials) |
+
+**Run Glue Crawler (after data is collected):**
+
+```shell
+aws glue start-crawler --name $(terraform output -raw glue_curated_crawler_name)
+```
+
+**Setup and run:**
+
+```shell
+cd applications/heatmap-athena-viewer
+cp .env.example .env  # Edit
+npm install
+npm run dev  # http://localhost:5174
+```
+
+## Monitoring
+
+```shell
+aws kinesisanalyticsv2 describe-application \
+  --application-name $(terraform output -raw msf_application_name)
+
+aws logs tail /aws/kinesis-analytics/$(terraform output -raw msf_application_name) --follow
+
+aws s3 ls s3://$(terraform output -raw s3_curated_bucket)/curated/ --recursive
+
+aws glue get-tables --database-name $(terraform output -raw glue_database_name)
+```
+
+## Cleanup
+
+```shell
+aws kinesisanalyticsv2 stop-application \
+  --application-name $(terraform output -raw msf_application_name)
+
+aws s3 rm s3://$(terraform output -raw s3_raw_bucket) --recursive
+aws s3 rm s3://$(terraform output -raw s3_curated_bucket) --recursive
+aws s3 rm s3://$(terraform output -raw s3_athena_results_bucket) --recursive
+
+terraform destroy -var-file="env/dev.tfvars"
+```
 
 **Get Terraform outputs:**
 
