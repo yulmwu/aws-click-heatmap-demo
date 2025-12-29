@@ -10,7 +10,7 @@ terraform {
       version = "~> 3.6"
     }
   }
-    
+
   backend "s3" {} # configured via env/*.backend.hcl
 }
 

@@ -52,8 +52,7 @@ data "aws_iam_policy_document" "backend_policy" {
       "athena:ListWorkGroups"
     ]
     resources = [
-      var.athena_workgroup_arn,
-      "*"
+      var.athena_workgroup_arn
     ]
   }
 
@@ -61,7 +60,8 @@ data "aws_iam_policy_document" "backend_policy" {
     effect = "Allow"
     actions = [
       "s3:GetObject",
-      "s3:ListBucket"
+      "s3:ListBucket",
+      "s3:PutObject"
     ]
     resources = [
       var.athena_results_bucket_arn,
@@ -83,7 +83,13 @@ data "aws_iam_policy_document" "backend_policy" {
       "glue:GetPartition",
       "glue:GetPartitions"
     ]
-    resources = ["*"]
+    resources = concat(
+      ["arn:aws:glue:*:*:catalog"],
+      var.glue_database_arn != null ? [
+        var.glue_database_arn,
+        "${var.glue_database_arn}/*"
+      ] : []
+    )
   }
 }
 

@@ -76,7 +76,7 @@ resource "aws_glue_crawler" "curated" {
   name          = var.curated_crawler_name
   role          = aws_iam_role.glue_role.arn
   database_name = aws_glue_catalog_database.this.name
-  table_prefix  = "curated_"
+  table_prefix  = ""
 
   s3_target {
     path = "s3://${var.curated_bucket_name}/${var.curated_prefix}"
@@ -90,6 +90,13 @@ resource "aws_glue_crawler" "curated" {
   recrawl_policy {
     recrawl_behavior = "CRAWL_EVERYTHING"
   }
+
+  configuration = jsonencode({
+    Version = 1.0
+    Grouping = {
+      TableGroupingPolicy = "CombineCompatibleSchemas"
+    }
+  })
 
   tags = merge(var.tags, { Name = var.curated_crawler_name })
 }

@@ -30,12 +30,68 @@ data "aws_iam_policy_document" "msf_policy" {
   }
 
   statement {
+    sid    = "S3WriteCurated"
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:GetObject",
+      "s3:ListBucket",
+      "s3:DeleteObject"
+    ]
+    resources = [
+      "arn:aws:s3:::${var.artifact_bucket_name}",
+      "arn:aws:s3:::${var.artifact_bucket_name}/*"
+    ]
+  }
+
+  statement {
+    sid    = "KinesisRead"
+    effect = "Allow"
+    actions = [
+      "kinesis:DescribeStream",
+      "kinesis:DescribeStreamSummary",
+      "kinesis:GetRecords",
+      "kinesis:GetShardIterator",
+      "kinesis:ListShards",
+      "kinesis:ListStreams",
+      "kinesis:SubscribeToShard"
+    ]
+    resources = [var.kinesis_stream_arn]
+  }
+
+  statement {
     sid    = "CloudWatchLogs"
     effect = "Allow"
     actions = [
       "logs:CreateLogGroup",
       "logs:CreateLogStream",
-      "logs:PutLogEvents"
+      "logs:PutLogEvents",
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "CloudWatchMetrics"
+    effect = "Allow"
+    actions = [
+      "cloudwatch:PutMetricData"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "VPCNetworkInterface"
+    effect = "Allow"
+    actions = [
+      "ec2:CreateNetworkInterface",
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:DeleteNetworkInterface",
+      "ec2:DescribeVpcs",
+      "ec2:DescribeSubnets",
+      "ec2:DescribeSecurityGroups",
+      "ec2:DescribeDhcpOptions"
     ]
     resources = ["*"]
   }
