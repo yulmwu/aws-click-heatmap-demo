@@ -59,8 +59,19 @@ function initClient() {
     })
 }
 
+function getStageSize() {
+    const rect = stage.getBoundingClientRect()
+    const width = Math.round(rect.width)
+    const height = Math.round(rect.height)
+    return {
+        width: width > 0 ? width : window.innerWidth,
+        height: height > 0 ? height : window.innerHeight,
+    }
+}
+
 function buildEvent(x: number, y: number): ClickEvent {
     const now = new Date()
+    const { width, height } = getStageSize()
     return {
         event_type: 'click',
         event_time: now.toISOString(),
@@ -68,8 +79,8 @@ function buildEvent(x: number, y: number): ClickEvent {
         page_id: pageIdInput.value || 'demo-page',
         x,
         y,
-        viewport_width: window.innerWidth,
-        viewport_height: window.innerHeight,
+        viewport_width: width,
+        viewport_height: height,
         dpr: window.devicePixelRatio || 1,
         user_agent: navigator.userAgent,
     }

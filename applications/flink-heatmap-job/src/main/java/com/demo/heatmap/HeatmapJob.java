@@ -16,11 +16,17 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 
 public class HeatmapJob {
 
     private static final int GRID_SIZE = 20;
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final String APP_PROPERTIES_PATH = "/etc/flink/application_properties.json";
+    private static final Map<String, String> APP_PROPERTIES = loadAppProperties();
 
     private static String getProperty(String key, String defaultValue) {
         String value = System.getProperty("FlinkApplicationProperties." + key);
@@ -30,7 +36,28 @@ public class HeatmapJob {
         if (value == null || value.isEmpty()) {
             value = System.getenv(key);
         }
+        if (value == null || value.isEmpty()) {
+            value = APP_PROPERTIES.get(key);
+        }
         return (value != null && !value.isEmpty()) ? value : defaultValue;
+    }
+
+    private static Map<String, String> loadAppProperties() {
+        try {
+            if (!Files.exists(Paths.get(APP_PROPERTIES_PATH))) {
+                return Map.of();
+            }
+            JsonNode root = MAPPER.readTree(Files.newBufferedReader(Paths.get(APP_PROPERTIES_PATH)));
+            JsonNode group = root.get("FlinkApplicationProperties");
+            if (group == null || !group.isObject()) {
+                return Map.of();
+            }
+            Map<String, String> out = new HashMap<>();
+            group.fields().forEachRemaining(entry -> out.put(entry.getKey(), entry.getValue().asText()));
+            return out;
+        } catch (Exception e) {
+            return Map.of();
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -84,7 +111,9 @@ public class HeatmapJob {
 
         String outputPath = getProperty("CURATED_S3_PATH", "s3://bucket/curated/");
         if (!outputPath.endsWith("/")) outputPath += "/";
-        outputPath += "curated_heatmap/";
+        if (!outputPath.endsWith("curated_heatmap/")) {
+            outputPath += "curated_heatmap/";
+        }
         
         Schema avroSchema = new Schema.Parser().parse(
             "{\"type\":\"record\",\"name\":\"HeatmapAggregate\",\"namespace\":\"com.demo.heatmap\"," +

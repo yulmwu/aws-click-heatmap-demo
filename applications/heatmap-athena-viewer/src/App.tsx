@@ -92,6 +92,7 @@ export default function App() {
         setQueryId(qid)
 
         let outputLocation = ''
+        let succeeded = false
         for (let i = 0; i < 60; i++) {
             setStatus(`Polling Athena... (${i + 1}/60)`)
             await new Promise((r) => setTimeout(r, 2000))
@@ -99,9 +100,10 @@ export default function App() {
             const res = await athena.send(new GetQueryExecutionCommand({ QueryExecutionId: qid }))
             const st = res.QueryExecution?.Status?.State
             const reason = res.QueryExecution?.Status?.StateChangeReason
-            outputLocation = res.QueryExecution?.ResultConfiguration?.OutputLocation || ''
 
             if (st === 'SUCCEEDED') {
+                outputLocation = res.QueryExecution?.ResultConfiguration?.OutputLocation || ''
+                succeeded = true
                 setStatus('SUCCEEDED. Downloading result...')
                 break
             }
@@ -110,6 +112,9 @@ export default function App() {
             }
         }
 
+        if (!succeeded) {
+            throw new Error('Athena query timed out. Try again or narrow the time range.')
+        }
         if (!outputLocation) {
             throw new Error('No OutputLocation. Ensure Athena workgroup has results bucket configured.')
         }
