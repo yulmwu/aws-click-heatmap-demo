@@ -20,10 +20,13 @@ data "aws_iam_policy_document" "msf_policy" {
     sid    = "S3Access"
     effect = "Allow"
     actions = [
+      "s3:AbortMultipartUpload",
       "s3:GetObject",
+      "s3:ListBucketMultipartUploads",
       "s3:PutObject",
       "s3:ListBucket",
-      "s3:DeleteObject"
+      "s3:DeleteObject",
+      "s3:ListMultipartUploadParts"
     ]
     resources = [
       "arn:aws:s3:::${var.artifact_bucket_name}",
@@ -52,12 +55,20 @@ data "aws_iam_policy_document" "msf_policy" {
     actions = [
       "logs:PutLogEvents",
       "logs:CreateLogStream",
-      "logs:CreateLogGroup",
       "logs:DescribeLogStreams"
     ]
     resources = [
       "arn:aws:logs:*:*:log-group:/aws/kinesis-analytics/${var.app_name}:*"
     ]
+  }
+
+  statement {
+    sid    = "CloudWatchLogsCreateGroup"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup"
+    ]
+    resources = ["*"]
   }
 }
 
