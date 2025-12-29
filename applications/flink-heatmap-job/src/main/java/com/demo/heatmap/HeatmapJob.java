@@ -40,6 +40,7 @@ public class HeatmapJob {
         String streamArn = getProperty("KINESIS_STREAM_ARN", 
             "arn:aws:kinesis:us-east-1:123456789012:stream/demo");
         String awsRegion = getProperty("AWS_REGION", "ap-northeast-2");
+        System.setProperty("aws.region", awsRegion);
         
         KinesisStreamsSource<String> source =
             KinesisStreamsSource.<String>builder()
@@ -59,12 +60,13 @@ public class HeatmapJob {
                         int y = node.has("y") ? node.get("y").asInt() : 0;
                         int vw = node.has("viewport_width") ? node.get("viewport_width").asInt() : 1920;
                         int vh = node.has("viewport_height") ? node.get("viewport_height").asInt() : 1080;
+                        long ts = node.has("event_time_ms") ? node.get("event_time_ms").asLong() : System.currentTimeMillis();
                         
                         agg.gridX = Math.min(GRID_SIZE - 1, (x * GRID_SIZE) / Math.max(1, vw));
                         agg.gridY = Math.min(GRID_SIZE - 1, (y * GRID_SIZE) / Math.max(1, vh));
                         agg.clicks = 1;
-                        agg.windowStart = System.currentTimeMillis();
-                        agg.windowEnd = System.currentTimeMillis();
+                        agg.windowStart = ts;
+                        agg.windowEnd = ts;
                         return agg;
                     } catch (Exception e) {
                         return null;
@@ -75,6 +77,7 @@ public class HeatmapJob {
                 .window(TumblingProcessingTimeWindows.of(Time.minutes(1)))
                 .reduce((agg1, agg2) -> {
                     agg1.clicks += agg2.clicks;
+                    agg1.windowStart = Math.min(agg1.windowStart, agg2.windowStart);
                     agg1.windowEnd = Math.max(agg1.windowEnd, agg2.windowEnd);
                     return agg1;
                 });
