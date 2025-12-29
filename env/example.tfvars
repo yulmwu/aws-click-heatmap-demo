@@ -10,7 +10,6 @@ kinesis_retention_hours = 24
 firehose_buffer_size_mb  = 64
 firehose_buffer_interval = 300
 raw_prefix               = "raw/"
-raw_error_prefix         = "raw-errors/"
 raw_compression_format   = "UNCOMPRESSED"
 
 enable_glue          = true
@@ -23,4 +22,3 @@ enable_msf      = true
 msf_app_name    = "heatmap-demo-flink"
 msf_runtime     = "FLINK-1_18"
 msf_parallelism = 1
-msf_log_level   = "INFO"
