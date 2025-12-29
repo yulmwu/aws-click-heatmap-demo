@@ -18,12 +18,6 @@ variable "curated_bucket_arn" {
   description = "ARN of curated data S3 bucket"
 }
 
-variable "curated_prefix" {
-  type        = string
-  description = "S3 prefix for curated data"
-  default     = "curated/"
-}
-
 variable "curated_crawler_name" {
   type        = string
   description = "Glue crawler name"

@@ -79,24 +79,8 @@ resource "aws_glue_crawler" "curated" {
   table_prefix  = ""
 
   s3_target {
-    path = "s3://${var.curated_bucket_name}/${var.curated_prefix}"
+    path = "s3://${var.curated_bucket_name}/curated/curated_heatmap/"
   }
-
-  schema_change_policy {
-    update_behavior = "UPDATE_IN_DATABASE"
-    delete_behavior = "LOG"
-  }
-
-  recrawl_policy {
-    recrawl_behavior = "CRAWL_EVERYTHING"
-  }
-
-  configuration = jsonencode({
-    Version = 1.0
-    Grouping = {
-      TableGroupingPolicy = "CombineCompatibleSchemas"
-    }
-  })
 
   tags = merge(var.tags, { Name = var.curated_crawler_name })
 }

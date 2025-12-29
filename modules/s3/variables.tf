@@ -8,12 +8,6 @@ variable "suffix" {
   description = "Random suffix for bucket naming"
 }
 
-variable "enable_versioning" {
-  type        = bool
-  description = "Enable S3 bucket versioning"
-  default     = false
-}
-
 variable "tags" {
   type        = map(string)
   description = "Common tags"

@@ -1,9 +1,11 @@
-data "aws_iam_policy_document" "assume_ecs_tasks" {
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "assume_simple" {
   statement {
     effect = "Allow"
     principals {
-      type        = "Service"
-      identifiers = ["ecs-tasks.amazonaws.com"]
+      type        = "AWS"
+      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
     }
     actions = ["sts:AssumeRole"]
   }
@@ -11,7 +13,7 @@ data "aws_iam_policy_document" "assume_ecs_tasks" {
 
 resource "aws_iam_role" "producer" {
   name               = "${var.name_prefix}-producer-role"
-  assume_role_policy = data.aws_iam_policy_document.assume_ecs_tasks.json
+  assume_role_policy = data.aws_iam_policy_document.assume_simple.json
   tags               = merge(var.tags, { Name = "${var.name_prefix}-producer-role" })
 }
 
@@ -36,7 +38,7 @@ resource "aws_iam_role_policy" "producer_inline" {
 
 resource "aws_iam_role" "backend" {
   name               = "${var.name_prefix}-backend-role"
-  assume_role_policy = data.aws_iam_policy_document.assume_ecs_tasks.json
+  assume_role_policy = data.aws_iam_policy_document.assume_simple.json
   tags               = merge(var.tags, { Name = "${var.name_prefix}-backend-role" })
 }
 

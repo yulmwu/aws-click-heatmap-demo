@@ -80,21 +80,6 @@ data "aws_iam_policy_document" "msf_policy" {
     ]
     resources = ["*"]
   }
-
-  statement {
-    sid    = "VPCNetworkInterface"
-    effect = "Allow"
-    actions = [
-      "ec2:CreateNetworkInterface",
-      "ec2:DescribeNetworkInterfaces",
-      "ec2:DeleteNetworkInterface",
-      "ec2:DescribeVpcs",
-      "ec2:DescribeSubnets",
-      "ec2:DescribeSecurityGroups",
-      "ec2:DescribeDhcpOptions"
-    ]
-    resources = ["*"]
-  }
 }
 
 resource "aws_iam_role_policy" "inline" {
@@ -107,7 +92,14 @@ resource "aws_s3_object" "artifact" {
   bucket = var.artifact_bucket_name
   key    = "artifacts/${var.app_name}/flink-heatmap-job-1.0.0.zip"
   source = "${path.module}/artifacts/flink-heatmap-job-1.0.0.zip"
-  etag   = filemd5("${path.module}/artifacts/flink-heatmap-job-1.0.0.zip")
+  etag   = fileexists("${path.module}/artifacts/flink-heatmap-job-1.0.0.zip") ? filemd5("${path.module}/artifacts/flink-heatmap-job-1.0.0.zip") : null
+
+  lifecycle {
+    precondition {
+      condition     = fileexists("${path.module}/artifacts/flink-heatmap-job-1.0.0.zip")
+      error_message = "Flink JAR artifact not found. Please build the Flink application first: cd applications/flink-heatmap-job && mvn clean package && cd target && zip flink-heatmap-job-1.0.0.zip flink-heatmap-job-1.0.0.jar && mkdir -p ../../../modules/msf/artifacts && cp flink-heatmap-job-1.0.0.zip ../../../modules/msf/artifacts/"
+    }
+  }
 }
 
 resource "aws_kinesisanalyticsv2_application" "this" {
@@ -128,10 +120,9 @@ resource "aws_kinesisanalyticsv2_application" "this" {
 
     flink_application_configuration {
       parallelism_configuration {
-        configuration_type   = "CUSTOM"
-        parallelism          = var.parallelism
-        parallelism_per_kpu  = 1
-        auto_scaling_enabled = false
+        configuration_type  = "CUSTOM"
+        parallelism         = var.parallelism
+        parallelism_per_kpu = 1
       }
     }
 
@@ -155,9 +146,8 @@ resource "aws_kinesisanalyticsv2_application" "this" {
 }
 
 resource "aws_cloudwatch_log_group" "msf" {
-  name              = "/aws/kinesis-analytics/${var.app_name}"
-  retention_in_days = 7
-  tags              = merge(var.tags, { Name = "/aws/kinesis-analytics/${var.app_name}" })
+  name = "/aws/kinesis-analytics/${var.app_name}"
+  tags = merge(var.tags, { Name = "/aws/kinesis-analytics/${var.app_name}" })
 }
 
 resource "aws_cloudwatch_log_stream" "msf" {

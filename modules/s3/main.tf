@@ -63,27 +63,3 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "athena_results" {
     }
   }
 }
-
-resource "aws_s3_bucket_versioning" "raw" {
-  count  = var.enable_versioning ? 1 : 0
-  bucket = aws_s3_bucket.raw.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_versioning" "curated" {
-  count  = var.enable_versioning ? 1 : 0
-  bucket = aws_s3_bucket.curated.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_versioning" "athena_results" {
-  count  = var.enable_versioning ? 1 : 0
-  bucket = aws_s3_bucket.athena_results.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}

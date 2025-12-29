@@ -7,8 +7,5 @@ resource "aws_kinesis_stream" "this" {
     stream_mode = "PROVISIONED"
   }
 
-  encryption_type = "KMS"
-  kms_key_id      = "alias/aws/kinesis"
-
   tags = merge(var.tags, { Name = "${var.name_prefix}-kds" })
 }

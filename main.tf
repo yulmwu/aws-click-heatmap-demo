@@ -37,10 +37,9 @@ locals {
 module "s3" {
   source = "./modules/s3"
 
-  name_prefix       = local.name_prefix
-  suffix            = local.suffix
-  enable_versioning = var.enable_versioning
-  tags              = local.tags
+  name_prefix = local.name_prefix
+  suffix      = local.suffix
+  tags        = local.tags
 }
 
 module "kinesis" {
@@ -84,7 +83,6 @@ module "glue" {
   database_name        = var.glue_database_name
   curated_bucket_name  = module.s3.curated_bucket_name
   curated_bucket_arn   = module.s3.curated_bucket_arn
-  curated_prefix       = "curated/"
   curated_crawler_name = var.curated_crawler_name
   tags                 = local.tags
 }

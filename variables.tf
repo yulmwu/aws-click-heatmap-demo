@@ -58,12 +58,6 @@ variable "raw_compression_format" {
   default     = "UNCOMPRESSED"
 }
 
-variable "enable_versioning" {
-  type        = bool
-  description = "Enable S3 bucket versioning for all buckets."
-  default     = false
-}
-
 variable "enable_glue" {
   type        = bool
   description = "Create Glue Database/Crawler for curated bucket."

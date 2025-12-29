@@ -80,12 +80,6 @@ resource "aws_kinesis_firehose_delivery_stream" "this" {
     buffering_interval = var.buffer_interval_seconds
 
     compression_format = var.compression_format
-
-    cloudwatch_logging_options {
-      enabled         = true
-      log_group_name  = "/aws/kinesisfirehose/${var.name_prefix}-firehose-raw"
-      log_stream_name = "S3Delivery"
-    }
   }
 
   tags = merge(var.tags, { Name = "${var.name_prefix}-firehose-raw" })
