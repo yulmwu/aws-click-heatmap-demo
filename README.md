@@ -101,7 +101,6 @@ Create `applications/heatmap-athena-viewer/.env` based on `.env.example`:
 | `VITE_GLUE_TABLE`            | N/A                     | Glue table name (e.g., `curated_heatmap`)    |
 | `VITE_AWS_ACCESS_KEY_ID`     | N/A                     | AWS access key with full permissions         |
 | `VITE_AWS_SECRET_ACCESS_KEY` | N/A                     | AWS secret key with full permissions         |
-| `VITE_AWS_SESSION_TOKEN`     | N/A                     | AWS session token (optional, leave empty)    |
 
 **Run Glue Crawler (after data is collected):**
 
@@ -146,18 +145,6 @@ aws s3 rm s3://$(terraform output -raw s3_curated_bucket) --recursive
 aws s3 rm s3://$(terraform output -raw s3_athena_results_bucket) --recursive
 
 terraform destroy -var-file="env/dev.tfvars"
-```
-
-**Get Terraform outputs:**
-
-```shell
-terraform output athena_workgroup_name
-terraform output glue_database_name
-terraform output aws_region
-
-# List tables in Glue database
-aws glue get-tables --database-name $(terraform output -raw glue_database_name) \
-  --query 'TableList[*].Name' --output text
 ```
 
 **Note:** The `VITE_GLUE_TABLE` value should be `curated_heatmap` (the crawler auto-creates this table name based on the S3 folder structure). If data is being written by Flink to `s3://BUCKET/curated/curated_heatmap/`, the Glue Crawler will create a table named `curated_heatmap`.
