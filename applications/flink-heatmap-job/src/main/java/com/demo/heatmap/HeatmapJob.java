@@ -2,45 +2,35 @@ package com.demo.heatmap;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.connector.kinesis.source.KinesisStreamsSource;
-import org.apache.flink.connector.file.sink.FileSink;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.parquet.avro.AvroParquetWriters;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericRecord;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.sink.FileSink;
+import org.apache.flink.connector.kinesis.source.KinesisStreamsSource;
+import org.apache.flink.connector.kinesis.source.config.KinesisStreamsSourceConfigConstants;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.formats.parquet.avro.AvroParquetWriters;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 
 public class HeatmapJob {
 
     private static final int GRID_SIZE = 20;
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String APP_PROPERTIES_PATH = "/etc/flink/application_properties.json";
-    private static final Map<String, String> APP_PROPERTIES = loadAppProperties();
-
-    private static String getProperty(String key, String defaultValue) {
-        String value = System.getProperty("FlinkApplicationProperties." + key);
-        if (value == null || value.isEmpty()) {
-            value = System.getProperty(key);
-        }
-        if (value == null || value.isEmpty()) {
-            value = System.getenv(key);
-        }
-        if (value == null || value.isEmpty()) {
-            value = APP_PROPERTIES.get(key);
-        }
-        return (value != null && !value.isEmpty()) ? value : defaultValue;
-    }
 
     private static Map<String, String> loadAppProperties() {
         try {
@@ -48,58 +38,108 @@ public class HeatmapJob {
                 return Map.of();
             }
             JsonNode root = MAPPER.readTree(Files.newBufferedReader(Paths.get(APP_PROPERTIES_PATH)));
-            JsonNode group = root.get("FlinkApplicationProperties");
-            if (group == null || !group.isObject()) {
-                return Map.of();
-            }
             Map<String, String> out = new HashMap<>();
-            group.fields().forEachRemaining(entry -> out.put(entry.getKey(), entry.getValue().asText()));
+            if (root.isObject()) {
+                JsonNode group = root.get("FlinkApplicationProperties");
+                if (group != null && group.isObject()) {
+                    group.fields().forEachRemaining(entry -> out.put(entry.getKey(), entry.getValue().asText()));
+                    return out;
+                }
+                JsonNode groups = root.get("PropertyGroups");
+                if (groups == null) {
+                    groups = root.get("propertyGroups");
+                }
+                if (groups != null && groups.isArray()) {
+                    readGroupsArray(groups, out);
+                    return out;
+                }
+                if (isGroupNode(root)) {
+                    readGroup(root, out);
+                    return out;
+                }
+            } else if (root.isArray()) {
+                readGroupsArray(root, out);
+                return out;
+            }
             return out;
         } catch (Exception e) {
             return Map.of();
         }
     }
 
+    private static void readGroupsArray(JsonNode groups, Map<String, String> out) {
+        for (JsonNode item : groups) {
+            String groupId = getGroupId(item);
+            if ("FlinkApplicationProperties".equals(groupId)) {
+                readGroup(item, out);
+                return;
+            }
+        }
+    }
+
+    private static void readGroup(JsonNode group, Map<String, String> out) {
+        JsonNode propertyMap = group.get("propertyMap");
+        if (propertyMap == null) {
+            propertyMap = group.get("PropertyMap");
+        }
+        if (propertyMap == null) {
+            propertyMap = group.get("property_map");
+        }
+        if (propertyMap != null && propertyMap.isObject()) {
+            propertyMap.fields().forEachRemaining(entry -> out.put(entry.getKey(), entry.getValue().asText()));
+        }
+    }
+
+    private static boolean isGroupNode(JsonNode node) {
+        return getGroupId(node) != null && (node.has("propertyMap") || node.has("PropertyMap") || node.has("property_map"));
+    }
+
+    private static String getGroupId(JsonNode node) {
+        JsonNode groupId = node.get("propertyGroupId");
+        if (groupId == null) {
+            groupId = node.get("PropertyGroupId");
+        }
+        if (groupId == null) {
+            groupId = node.get("property_group_id");
+        }
+        if (groupId != null && groupId.isTextual()) {
+            return groupId.asText();
+        }
+        return null;
+    }
+
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(60000);
 
-        String streamArn = getProperty("KINESIS_STREAM_ARN", 
-            "arn:aws:kinesis:us-east-1:123456789012:stream/demo");
-        String awsRegion = getProperty("AWS_REGION", "ap-northeast-2");
+        ParameterTool parameters = ParameterTool.fromSystemProperties()
+            .mergeWith(ParameterTool.fromMap(System.getenv()))
+            .mergeWith(ParameterTool.fromMap(loadAppProperties()))
+            .mergeWith(ParameterTool.fromArgs(args));
+        env.getConfig().setGlobalJobParameters(parameters);
+
+        String streamArn = parameters.getRequired("KINESIS_STREAM_ARN");
+        String awsRegion = parameters.get("AWS_REGION", "ap-northeast-2");
         System.setProperty("aws.region", awsRegion);
-        
+        Configuration sourceConfig = new Configuration();
+        sourceConfig.set(KinesisStreamsSourceConfigConstants.STREAM_INITIAL_POSITION,
+            KinesisStreamsSourceConfigConstants.InitialPosition.LATEST);
+        sourceConfig.set(KinesisStreamsSourceConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, 10000L);
+
         KinesisStreamsSource<String> source =
             KinesisStreamsSource.<String>builder()
                 .setStreamArn(streamArn)
+                .setSourceConfig(sourceConfig)
                 .setDeserializationSchema(new SimpleStringSchema())
                 .build();
 
         DataStream<HeatmapAggregate> aggregated =
             env.fromSource(source, WatermarkStrategy.noWatermarks(), "kinesis-source")
-                .map(json -> {
-                    try {
-                        JsonNode node = MAPPER.readTree(json);
-                        HeatmapAggregate agg = new HeatmapAggregate();
-                        agg.pageId = node.has("page_id") ? node.get("page_id").asText() : "default";
-                        
-                        int x = node.has("x") ? node.get("x").asInt() : 0;
-                        int y = node.has("y") ? node.get("y").asInt() : 0;
-                        int vw = node.has("viewport_width") ? node.get("viewport_width").asInt() : 1920;
-                        int vh = node.has("viewport_height") ? node.get("viewport_height").asInt() : 1080;
-                        long ts = node.has("event_time_ms") ? node.get("event_time_ms").asLong() : System.currentTimeMillis();
-                        
-                        agg.gridX = Math.min(GRID_SIZE - 1, (x * GRID_SIZE) / Math.max(1, vw));
-                        agg.gridY = Math.min(GRID_SIZE - 1, (y * GRID_SIZE) / Math.max(1, vh));
-                        agg.clicks = 1;
-                        agg.windowStart = ts;
-                        agg.windowEnd = ts;
-                        return agg;
-                    } catch (Exception e) {
-                        return null;
-                    }
+                .flatMap((String json, org.apache.flink.util.Collector<HeatmapAggregate> out) -> {
+                    Optional<HeatmapAggregate> agg = parseEvent(json);
+                    agg.ifPresent(out::collect);
                 })
-                .filter(agg -> agg != null)
+                .returns(HeatmapAggregate.class)
                 .keyBy(agg -> agg.pageId + "-" + agg.gridX + "-" + agg.gridY)
                 .window(TumblingProcessingTimeWindows.of(Time.minutes(1)))
                 .reduce((agg1, agg2) -> {
@@ -109,7 +149,7 @@ public class HeatmapJob {
                     return agg1;
                 });
 
-        String outputPath = getProperty("CURATED_S3_PATH", "s3://bucket/curated/");
+        String outputPath = parameters.getRequired("CURATED_S3_PATH");
         if (!outputPath.endsWith("/")) outputPath += "/";
         if (!outputPath.endsWith("curated_heatmap/")) {
             outputPath += "curated_heatmap/";
@@ -144,5 +184,28 @@ public class HeatmapJob {
         }).sinkTo(sink);
 
         env.execute("heatmap-flink-job");
+    }
+
+    private static Optional<HeatmapAggregate> parseEvent(String json) {
+        try {
+            JsonNode node = MAPPER.readTree(json);
+            HeatmapAggregate agg = new HeatmapAggregate();
+            agg.pageId = node.has("page_id") ? node.get("page_id").asText() : "default";
+
+            int x = node.has("x") ? node.get("x").asInt() : 0;
+            int y = node.has("y") ? node.get("y").asInt() : 0;
+            int vw = node.has("viewport_width") ? node.get("viewport_width").asInt() : 1920;
+            int vh = node.has("viewport_height") ? node.get("viewport_height").asInt() : 1080;
+            long ts = node.has("event_time_ms") ? node.get("event_time_ms").asLong() : System.currentTimeMillis();
+
+            agg.gridX = Math.min(GRID_SIZE - 1, (x * GRID_SIZE) / Math.max(1, vw));
+            agg.gridY = Math.min(GRID_SIZE - 1, (y * GRID_SIZE) / Math.max(1, vh));
+            agg.clicks = 1;
+            agg.windowStart = ts;
+            agg.windowEnd = ts;
+            return Optional.of(agg);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 }
