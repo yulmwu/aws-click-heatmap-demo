@@ -58,28 +58,6 @@ data "aws_iam_policy_document" "msf_policy" {
     ]
     resources = [var.kinesis_stream_arn]
   }
-
-  statement {
-    sid    = "CloudWatchLogs"
-    effect = "Allow"
-    actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents",
-      "logs:DescribeLogGroups",
-      "logs:DescribeLogStreams"
-    ]
-    resources = ["*"]
-  }
-
-  statement {
-    sid    = "CloudWatchMetrics"
-    effect = "Allow"
-    actions = [
-      "cloudwatch:PutMetricData"
-    ]
-    resources = ["*"]
-  }
 }
 
 resource "aws_iam_role_policy" "inline" {
@@ -138,19 +116,5 @@ resource "aws_kinesisanalyticsv2_application" "this" {
     }
   }
 
-  cloudwatch_logging_options {
-    log_stream_arn = aws_cloudwatch_log_stream.msf.arn
-  }
-
   tags = merge(var.tags, { Name = var.app_name })
-}
-
-resource "aws_cloudwatch_log_group" "msf" {
-  name = "/aws/kinesis-analytics/${var.app_name}"
-  tags = merge(var.tags, { Name = "/aws/kinesis-analytics/${var.app_name}" })
-}
-
-resource "aws_cloudwatch_log_stream" "msf" {
-  name           = "application"
-  log_group_name = aws_cloudwatch_log_group.msf.name
 }

@@ -63,16 +63,6 @@ output "glue_curated_crawler_name" {
   description = "Glue crawler name for curated data"
 }
 
-output "producer_role_arn" {
-  value       = module.iam.producer_role_arn
-  description = "Producer IAM role ARN"
-}
-
-output "backend_role_arn" {
-  value       = module.iam.backend_role_arn
-  description = "Backend IAM role ARN"
-}
-
 output "msf_application_name" {
   value       = var.enable_msf ? module.msf[0].application_name : null
   description = "MSF application name"

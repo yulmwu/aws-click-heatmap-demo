@@ -46,12 +46,6 @@ variable "raw_prefix" {
   default     = "raw/"
 }
 
-variable "raw_error_prefix" {
-  type        = string
-  description = "S3 prefix for Firehose error output in the raw bucket."
-  default     = "raw-errors/"
-}
-
 variable "raw_compression_format" {
   type        = string
   description = "Firehose S3 compression format. UNCOMPRESSED is simplest for PoC."
@@ -102,12 +96,6 @@ variable "msf_runtime" {
 
 variable "msf_parallelism" {
   type        = number
-  description = "MSF parallelism (initial)."
+  description = "MSF parallelism (number of parallel tasks)."
   default     = 1
-}
-
-variable "msf_log_level" {
-  type        = string
-  description = "MSF log level."
-  default     = "INFO"
 }

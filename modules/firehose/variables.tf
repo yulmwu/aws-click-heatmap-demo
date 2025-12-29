@@ -24,12 +24,6 @@ variable "raw_prefix" {
   default     = "raw/"
 }
 
-variable "raw_error_prefix" {
-  type        = string
-  description = "S3 prefix for error output"
-  default     = "raw-errors/"
-}
-
 variable "buffer_size_mb" {
   type        = number
   description = "Buffer size in MB"

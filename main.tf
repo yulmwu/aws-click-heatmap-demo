@@ -59,7 +59,6 @@ module "firehose" {
   raw_bucket_arn          = module.s3.raw_bucket_arn
   raw_bucket_name         = module.s3.raw_bucket_name
   raw_prefix              = var.raw_prefix
-  raw_error_prefix        = var.raw_error_prefix
   buffer_size_mb          = var.firehose_buffer_size_mb
   buffer_interval_seconds = var.firehose_buffer_interval
   compression_format      = var.raw_compression_format
@@ -95,26 +94,11 @@ module "msf" {
   app_name            = var.msf_app_name
   runtime_environment = var.msf_runtime
   parallelism         = var.msf_parallelism
-  log_level           = var.msf_log_level
 
   artifact_bucket_name = module.s3.curated_bucket_name
   kinesis_stream_arn   = module.kinesis.stream_arn
   curated_s3_path      = "s3://${module.s3.curated_bucket_name}/curated/"
   aws_region           = var.aws_region
-
-  tags = local.tags
-}
-
-module "iam" {
-  source = "./modules/iam"
-
-  name_prefix               = local.name_prefix
-  kinesis_stream_arn        = module.kinesis.stream_arn
-  athena_workgroup_arn      = module.athena.workgroup_arn
-  athena_results_bucket_arn = module.s3.athena_results_bucket_arn
-  curated_bucket_arn        = module.s3.curated_bucket_arn
-  raw_bucket_arn            = module.s3.raw_bucket_arn
-  glue_database_arn         = var.enable_glue ? module.glue[0].database_arn : null
 
   tags = local.tags
 }

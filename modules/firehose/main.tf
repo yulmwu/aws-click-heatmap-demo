@@ -46,13 +46,6 @@ data "aws_iam_policy_document" "firehose_policy" {
     ]
     resources = [var.kinesis_stream_arn]
   }
-
-  statement {
-    sid       = "Logs"
-    effect    = "Allow"
-    actions   = ["logs:PutLogEvents"]
-    resources = ["*"]
-  }
 }
 
 resource "aws_iam_role_policy" "firehose_inline" {
@@ -71,10 +64,9 @@ resource "aws_kinesis_firehose_delivery_stream" "this" {
   }
 
   extended_s3_configuration {
-    role_arn            = aws_iam_role.firehose_role.arn
-    bucket_arn          = var.raw_bucket_arn
-    prefix              = var.raw_prefix
-    error_output_prefix = var.raw_error_prefix
+    role_arn   = aws_iam_role.firehose_role.arn
+    bucket_arn = var.raw_bucket_arn
+    prefix     = var.raw_prefix
 
     buffering_size     = var.buffer_size_mb
     buffering_interval = var.buffer_interval_seconds

@@ -53,17 +53,6 @@ data "aws_iam_policy_document" "policy" {
     ]
     resources = ["*"]
   }
-
-  statement {
-    sid    = "CloudWatchLogs"
-    effect = "Allow"
-    actions = [
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents"
-    ]
-    resources = ["*"]
-  }
 }
 
 resource "aws_iam_role_policy" "inline" {

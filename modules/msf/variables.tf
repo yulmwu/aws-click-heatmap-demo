@@ -20,12 +20,6 @@ variable "parallelism" {
   default     = 1
 }
 
-variable "log_level" {
-  type        = string
-  description = "Application log level"
-  default     = "INFO"
-}
-
 variable "artifact_bucket_name" {
   type        = string
   description = "S3 bucket to store the Flink application artifact."
