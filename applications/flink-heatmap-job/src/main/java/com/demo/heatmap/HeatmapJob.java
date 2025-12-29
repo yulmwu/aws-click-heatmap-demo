@@ -22,13 +22,11 @@ public class HeatmapJob {
     private static final int GRID_SIZE = 20;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    /**
-     * Helper to get property from environment variables or system properties.
-     * MSF passes FlinkApplicationProperties as both system properties and env vars.
-     * Try system property first, then environment variable.
-     */
     private static String getProperty(String key, String defaultValue) {
-        String value = System.getProperty(key);
+        String value = System.getProperty("FlinkApplicationProperties." + key);
+        if (value == null || value.isEmpty()) {
+            value = System.getProperty(key);
+        }
         if (value == null || value.isEmpty()) {
             value = System.getenv(key);
         }
@@ -39,7 +37,6 @@ public class HeatmapJob {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(60000);
 
-        // Read from environment variables (MSF passes via FlinkApplicationProperties)
         String streamArn = getProperty("KINESIS_STREAM_ARN", 
             "arn:aws:kinesis:us-east-1:123456789012:stream/demo");
         String awsRegion = getProperty("AWS_REGION", "ap-northeast-2");
@@ -70,7 +67,6 @@ public class HeatmapJob {
                         agg.windowEnd = System.currentTimeMillis();
                         return agg;
                     } catch (Exception e) {
-                        // Skip invalid records
                         return null;
                     }
                 })
@@ -90,11 +86,11 @@ public class HeatmapJob {
         Schema avroSchema = new Schema.Parser().parse(
             "{\"type\":\"record\",\"name\":\"HeatmapAggregate\",\"namespace\":\"com.demo.heatmap\"," +
             "\"fields\":[" +
-            "{\"name\":\"pageid\",\"type\":\"string\"}," +
-            "{\"name\":\"gridx\",\"type\":\"int\"}," +
-            "{\"name\":\"gridy\",\"type\":\"int\"}," +
-            "{\"name\":\"windowstart\",\"type\":\"long\"}," +
-            "{\"name\":\"windowend\",\"type\":\"long\"}," +
+            "{\"name\":\"page_id\",\"type\":\"string\"}," +
+            "{\"name\":\"grid_x\",\"type\":\"int\"}," +
+            "{\"name\":\"grid_y\",\"type\":\"int\"}," +
+            "{\"name\":\"window_start\",\"type\":\"long\"}," +
+            "{\"name\":\"window_end\",\"type\":\"long\"}," +
             "{\"name\":\"clicks\",\"type\":\"long\"}" +
             "]}"
         );
@@ -106,11 +102,11 @@ public class HeatmapJob {
 
         aggregated.map(agg -> {
             GenericRecord record = new GenericData.Record(avroSchema);
-            record.put("pageid", agg.pageId);
-            record.put("gridx", agg.gridX);
-            record.put("gridy", agg.gridY);
-            record.put("windowstart", agg.windowStart);
-            record.put("windowend", agg.windowEnd);
+            record.put("page_id", agg.pageId);
+            record.put("grid_x", agg.gridX);
+            record.put("grid_y", agg.gridY);
+            record.put("window_start", agg.windowStart);
+            record.put("window_end", agg.windowEnd);
             record.put("clicks", agg.clicks);
             return record;
         }).sinkTo(sink);

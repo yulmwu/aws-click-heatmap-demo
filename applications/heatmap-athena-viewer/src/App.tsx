@@ -24,11 +24,11 @@ function credsOk() {
 function defaultQuery(db: string, table: string) {
     return `
 SELECT
-  gridx AS grid_x,
-  gridy AS grid_y,
+  grid_x,
+  grid_y,
   SUM(clicks) AS clicks
 FROM "${db}"."${table}"
-WHERE from_unixtime(windowend / 1000) >= date_add('hour', -1, current_timestamp)
+WHERE from_unixtime(window_end / 1000) >= date_add('hour', -1, current_timestamp)
 GROUP BY 1,2
 ORDER BY clicks DESC
 LIMIT 2000;
@@ -121,9 +121,8 @@ export default function App() {
         const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true })
         const out: Row[] = []
         for (const r of parsed.data as any[]) {
-            // Parquet columns are lowercase: gridx, gridy, clicks
-            const gx = Number(r.grid_x ?? r.gridx ?? 0)
-            const gy = Number(r.grid_y ?? r.gridy ?? 0)
+            const gx = Number(r.grid_x ?? 0)
+            const gy = Number(r.grid_y ?? 0)
             const clicks = Number(r.clicks ?? 0)
             if (Number.isFinite(gx) && Number.isFinite(gy) && Number.isFinite(clicks)) {
                 out.push({ grid_x: gx, grid_y: gy, clicks })
@@ -237,7 +236,7 @@ export default function App() {
                                 }}
                             />
                             <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
-                                If your schema differs, edit the SQL. Time filter assumes <code>windowend</code> is
+                                If your schema differs, edit the SQL. Time filter assumes <code>window_end</code> is
                                 epoch ms.
                             </div>
                         </div>
