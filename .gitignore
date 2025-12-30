@@ -33,7 +33,9 @@
 **/target/
 
 **/node_modules/
+**/dist/
 
 STEPBYSTEP.md
 TERRAFORM_DEPLOY.md
 amazon-managed-service-for-apache-flink-examples-main
+modules/msf/artifacts/*
