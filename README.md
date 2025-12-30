@@ -1,3 +1,11 @@
+![Preview](assets/preview.png)
+
+![Architecture Diagram](assets/architecture.png)
+
+_Draw.io file: [assets/architecture.drawio](assets/architecture.drawio)_
+
+---
+
 ## Prerequisites
 
 ```shell
@@ -30,10 +38,6 @@ terraform destroy -var-file="env/dev.tfvars" --auto-approve
 ```
 
 For detailed options(variables), see [env/example.tfvars](env/example.tfvars).
-
-![Architecture Diagram](assets/architecture.png)
-
-_Draw.io file: [assets/architecture.drawio](assets/architecture.drawio)_
 
 ## Build Flink Application Artifact
 
