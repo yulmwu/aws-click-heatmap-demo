@@ -42,12 +42,15 @@ cd applications/flink-heatmap-job
 mvn clean package
 
 cd target
-zip flink-heatmap-job-1.0.0.zip flink-heatmap-job-1.0.0.jar
+zip flink-heatmap-job-1.0.2.zip flink-heatmap-job-1.0.2.jar
 
 mkdir -p ../../../modules/msf/artifacts
-cp flink-heatmap-job-1.0.0.zip ../../../modules/msf/artifacts/
+cp flink-heatmap-job-1.0.2.zip ../../../modules/msf/artifacts/
 
 cd ../../..
+```
+
+```shell
 terraform init -backend-config="env/dev.backend.hcl"
 terraform apply -var-file="env/dev.tfvars"
 
@@ -55,7 +58,7 @@ aws kinesisanalyticsv2 start-application \
   --application-name $(terraform output -raw msf_application_name) \
   --run-configuration '{}'
 
-# Wait for MSF application to be in RUNNING state (can take 2-3 minutes)
+# Wait for MSF application to be in Running state (can take 2-3 minutes)
 aws kinesisanalyticsv2 describe-application \
   --application-name $(terraform output -raw msf_application_name) \
   --query 'ApplicationDetail.ApplicationStatus'
@@ -86,7 +89,7 @@ terraform output aws_region
 cd applications/heatmap-click-producer
 cp .env.example .env  # Edit
 npm install
-npm run dev  # http://localhost:5173
+npm run start  # http://localhost:5173
 ```
 
 ## heatmap-athena-viewer
@@ -102,7 +105,9 @@ Create `applications/heatmap-athena-viewer/.env` based on `.env.example`:
 | `VITE_AWS_ACCESS_KEY_ID`     | N/A                     | AWS access key with full permissions         |
 | `VITE_AWS_SECRET_ACCESS_KEY` | N/A                     | AWS secret key with full permissions         |
 
-**Run Glue Crawler (after data is collected):**
+**Run Glue Crawler:**
+
+Once the MSF application is in the 'Running' state and enough curated data has accumulated, run the Glue Crawler.
 
 ```shell
 aws glue start-crawler --name $(terraform output -raw glue_curated_crawler_name)
@@ -120,7 +125,7 @@ aws glue get-tables --database-name $(terraform output -raw glue_database_name) 
 cd applications/heatmap-athena-viewer
 cp .env.example .env  # Edit
 npm install
-npm run dev  # http://localhost:5174
+npm run start  # http://localhost:8787
 ```
 
 ## Monitoring
