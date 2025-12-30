@@ -1,0 +1,11 @@
+{
+    "root": [
+        "./src/app.tsx",
+        "./src/heatmapcanvas.tsx",
+        "./src/aws.ts",
+        "./src/main.tsx",
+        "./src/utils.ts",
+        "./src/vite-env.d.ts"
+    ],
+    "version": "5.9.3"
+}

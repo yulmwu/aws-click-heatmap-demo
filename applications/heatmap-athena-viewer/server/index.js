@@ -7,6 +7,8 @@ import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import Papa from 'papaparse'
 
 const PORT = Number(process.env.PORT || 8787)
+const DIST_DIR = path.resolve(process.cwd(), 'dist')
+const INDEX_FILE = path.join(DIST_DIR, 'index.html')
 
 loadDotEnv()
 
@@ -153,6 +155,57 @@ function sendJson(res, status, payload) {
     res.end(body)
 }
 
+function sendText(res, status, body, contentType) {
+    res.writeHead(status, {
+        'Content-Type': contentType || 'text/plain; charset=utf-8',
+    })
+    res.end(body)
+}
+
+function mimeType(filePath) {
+    const ext = path.extname(filePath).toLowerCase()
+    if (ext === '.html') return 'text/html; charset=utf-8'
+    if (ext === '.js') return 'text/javascript; charset=utf-8'
+    if (ext === '.css') return 'text/css; charset=utf-8'
+    if (ext === '.svg') return 'image/svg+xml'
+    if (ext === '.png') return 'image/png'
+    if (ext === '.ico') return 'image/x-icon'
+    if (ext === '.json') return 'application/json; charset=utf-8'
+    if (ext === '.map') return 'application/json; charset=utf-8'
+    if (ext === '.woff2') return 'font/woff2'
+    return 'application/octet-stream'
+}
+
+function safeResolve(root, urlPath) {
+    const cleaned = urlPath.replace(/^\//, '')
+    const filePath = path.resolve(root, cleaned)
+    if (!filePath.startsWith(root)) return null
+    return filePath
+}
+
+function serveStatic(res, urlPath) {
+    if (!fs.existsSync(DIST_DIR)) {
+        return sendText(res, 503, 'Missing dist/. Run: npm run build', 'text/plain; charset=utf-8')
+    }
+    const resolved = safeResolve(DIST_DIR, urlPath)
+    if (!resolved) {
+        return sendText(res, 403, 'Forbidden', 'text/plain; charset=utf-8')
+    }
+    let filePath = resolved
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+        filePath = path.join(filePath, 'index.html')
+    }
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        const body = fs.readFileSync(filePath)
+        return sendText(res, 200, body, mimeType(filePath))
+    }
+    if (fs.existsSync(INDEX_FILE)) {
+        const body = fs.readFileSync(INDEX_FILE)
+        return sendText(res, 200, body, 'text/html; charset=utf-8')
+    }
+    return sendText(res, 404, 'Not found', 'text/plain; charset=utf-8')
+}
+
 function errorToPayload(err) {
     const payload = {
         error: err?.message || String(err),
@@ -188,6 +241,9 @@ const server = http.createServer(async (req, res) => {
             console.error('Query failed:', err)
             return sendJson(res, 500, errorToPayload(err))
         }
+    }
+    if (req.method === 'GET' || req.method === 'HEAD') {
+        return serveStatic(res, url.pathname)
     }
     return sendJson(res, 404, { error: 'Not found' })
 })

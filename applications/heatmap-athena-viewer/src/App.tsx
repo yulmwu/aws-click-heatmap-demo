@@ -25,8 +25,7 @@ SELECT
 FROM "${db}"."${table}"
 WHERE from_unixtime(window_end / 1000) >= date_add('hour', -1, current_timestamp)
 GROUP BY 1,2
-ORDER BY clicks DESC
-LIMIT 2000;
+ORDER BY clicks DESC;
 `.trim()
 }
 
@@ -35,7 +34,7 @@ export default function App() {
     const [workgroup, setWorkgroup] = useState(WORKGROUP)
     const [database, setDatabase] = useState(DATABASE)
     const [table, setTable] = useState(TABLE)
-    const [gridSize, setGridSize] = useState(20)
+    const gridSize = 20
     const [query, setQuery] = useState(defaultQuery(DATABASE || 'heatmap_demo', TABLE || 'curated_heatmap'))
 
     const [status, setStatus] = useState('Idle')
@@ -109,10 +108,7 @@ export default function App() {
                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}
                 >
                     <div>
-                        <div style={{ fontSize: 18, fontWeight: 'bold' }}>Athena Heatmap Viewer (Last 1 hour)</div>
-                        <div style={{ fontSize: 13, color: '#666' }}>
-                            Backend API → Athena → S3 CSV → render heatmap.
-                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 'bold' }}>Athena Heatmap Viewer</div>
                     </div>
                     <button
                         onClick={() =>
@@ -146,11 +142,6 @@ export default function App() {
                             <Field label='Workgroup' value={workgroup} onChange={setWorkgroup} />
                             <Field label='Database' value={database} onChange={setDatabase} />
                             <Field label='Table' value={table} onChange={setTable} />
-                            <Field
-                                label='Grid Size'
-                                value={String(gridSize)}
-                                onChange={(v) => setGridSize(Math.max(5, Math.min(200, Number(v) || 20)))}
-                            />
                             <Field label='Status' value={status} disabled />
                         </div>
 
@@ -199,10 +190,6 @@ export default function App() {
                                     boxSizing: 'border-box',
                                 }}
                             />
-                            <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
-                                If your schema differs, edit the SQL. Time filter assumes <code>window_end</code> is
-                                epoch ms.
-                            </div>
                         </div>
                     </div>
 
@@ -215,7 +202,7 @@ export default function App() {
                     >
                         <HeatmapCanvas gridSize={gridSize} cells={cells} />
                         <div style={{ marginTop: 10, fontSize: 12, color: '#666' }}>
-                            Rendered grid: {gridSize}×{gridSize} · Rows used: {rows.length}
+                            Grid: {gridSize}×{gridSize}, Rows used: {rows.length}
                         </div>
                     </div>
                 </div>
