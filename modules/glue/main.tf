@@ -42,6 +42,7 @@ data "aws_iam_policy_document" "policy" {
       "glue:GetDatabase",
       "glue:GetTable",
       "glue:GetTables",
+      "glue:BatchGetPartition",
       "glue:BatchCreatePartition",
       "glue:CreatePartition",
       "glue:UpdatePartition",
@@ -80,6 +81,11 @@ resource "aws_glue_crawler" "curated" {
   role          = aws_iam_role.glue_role.arn
   database_name = aws_glue_catalog_database.this.name
   table_prefix  = ""
+  schedule      = "cron(0/30 * * * ? *)"
+
+  recrawl_policy {
+    recrawl_behavior = "CRAWL_EVERYTHING"
+  }
 
   s3_target {
     path = "s3://${var.curated_bucket_name}/curated/curated_heatmap/"

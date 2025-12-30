@@ -80,14 +80,14 @@ resource "aws_iam_role_policy" "inline" {
 
 resource "aws_s3_object" "artifact" {
   bucket = var.artifact_bucket_name
-  key    = "artifacts/${var.app_name}/flink-heatmap-job-1.0.1.zip"
-  source = "${path.module}/artifacts/flink-heatmap-job-1.0.1.zip"
-  etag   = fileexists("${path.module}/artifacts/flink-heatmap-job-1.0.1.zip") ? filemd5("${path.module}/artifacts/flink-heatmap-job-1.0.1.zip") : null
+  key    = "artifacts/${var.app_name}/flink-heatmap-job-1.0.2.zip"
+  source = "${path.module}/artifacts/flink-heatmap-job-1.0.2.zip"
+  etag   = fileexists("${path.module}/artifacts/flink-heatmap-job-1.0.2.zip") ? filemd5("${path.module}/artifacts/flink-heatmap-job-1.0.2.zip") : null
 
   lifecycle {
     precondition {
-      condition     = fileexists("${path.module}/artifacts/flink-heatmap-job-1.0.1.zip")
-      error_message = "Flink JAR artifact not found. Please build the Flink application first: cd applications/flink-heatmap-job && mvn clean package && cd target && zip flink-heatmap-job-1.0.1.zip flink-heatmap-job-1.0.1.jar && mkdir -p ../../../modules/msf/artifacts && cp flink-heatmap-job-1.0.1.zip ../../../modules/msf/artifacts/"
+      condition     = fileexists("${path.module}/artifacts/flink-heatmap-job-1.0.2.zip")
+      error_message = "Flink JAR artifact not found. Please build the Flink application first: cd applications/flink-heatmap-job && mvn clean package && cd target && zip flink-heatmap-job-1.0.2.zip flink-heatmap-job-1.0.2.jar && mkdir -p ../../../modules/msf/artifacts && cp flink-heatmap-job-1.0.2.zip ../../../modules/msf/artifacts/"
     }
   }
 }
@@ -123,7 +123,7 @@ resource "aws_kinesisanalyticsv2_application" "this" {
           "KINESIS_STREAM_ARN" = var.kinesis_stream_arn
           "CURATED_S3_PATH"    = var.curated_s3_path
           "AWS_REGION"         = var.aws_region
-          "ARTIFACT_ETAG"      = fileexists("${path.module}/artifacts/flink-heatmap-job-1.0.1.zip") ? filemd5("${path.module}/artifacts/flink-heatmap-job-1.0.1.zip") : ""
+          "ARTIFACT_ETAG"      = fileexists("${path.module}/artifacts/flink-heatmap-job-1.0.2.zip") ? filemd5("${path.module}/artifacts/flink-heatmap-job-1.0.2.zip") : ""
         }
       }
     }
@@ -135,8 +135,8 @@ resource "aws_kinesisanalyticsv2_application" "this" {
 }
 
 resource "aws_cloudwatch_log_group" "app" {
-  name = "/aws/kinesis-analytics/${var.app_name}"
-  tags = merge(var.tags, { Name = "/aws/kinesis-analytics/${var.app_name}" })
+  name              = "/aws/kinesis-analytics/${var.app_name}"
+  tags              = merge(var.tags, { Name = "/aws/kinesis-analytics/${var.app_name}" })
   retention_in_days = 1
 }
 
