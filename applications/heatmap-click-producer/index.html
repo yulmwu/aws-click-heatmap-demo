@@ -23,9 +23,13 @@
                 margin-bottom: 15px;
             }
             .row {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
+                display: flex;
                 gap: 15px;
+                align-items: flex-start;
+                flex-direction: column;
+            }
+            .row .card {
+                width: 100%;
             }
             .hint {
                 color: #666;
@@ -54,14 +58,20 @@
                 padding: 10px;
                 overflow: auto;
                 white-space: pre-wrap;
+                max-height: 220px;
+                word-break: break-all;
+                overflow-wrap: anywhere;
+                box-sizing: border-box;
+                width: 100%;
             }
             #stage {
-                width: 100%;
-                height: 400px;
+                width: 720px;
+                height: 520px;
                 border: 1px solid #ccc;
                 background: #fafafa;
                 position: relative;
                 cursor: crosshair;
+                margin: 0 auto;
             }
             #dot {
                 position: absolute;
@@ -113,8 +123,7 @@
         <div class="container">
             <div class="top">
                 <div>
-                    <div class="title">Heatmap Click Producer → Kinesis Data Streams</div>
-                    <div class="sub">Click on the stage to send events via AWS SDK (browser). Demo-only.</div>
+                    <div class="title">Heatmap Click Producer</div>
                 </div>
                 <div style="display: flex; gap: 10px">
                     <button id="btnTest" class="btn btn2">Send test event</button>
@@ -127,13 +136,6 @@
                     <div id="stage">
                         <div id="dot"></div>
                     </div>
-                    <p class="hint" style="margin-top: 10px">
-                        Each click sends one record to Kinesis. Payload includes x/y, viewport, dpr, pageId, eventTime.
-                    </p>
-                    <p class="hint">
-                        If your browser blocks requests due to CORS, run the same code from a backend (Next.js API route
-                        / Lambda / API Gateway).
-                    </p>
                 </div>
 
                 <div class="card">
@@ -159,11 +161,6 @@
                     <div style="margin-top: 12px">
                         <label>Last event / response</label>
                         <pre id="log" class="kv">{}</pre>
-                    </div>
-
-                    <div style="margin-top: 12px" class="hint">
-                        Env vars are read from <code>.env</code> (Vite). Copy <code>.env.example</code> →
-                        <code>.env</code> and set values.
                     </div>
                 </div>
             </div>
