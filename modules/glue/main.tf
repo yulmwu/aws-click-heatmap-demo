@@ -54,6 +54,19 @@ data "aws_iam_policy_document" "policy" {
       "arn:aws:glue:*:*:table/${var.database_name}/*"
     ]
   }
+
+  statement {
+    sid    = "CloudWatchLogs"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = [
+      "arn:aws:logs:*:*:log-group:/aws-glue/crawlers:*"
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "inline" {

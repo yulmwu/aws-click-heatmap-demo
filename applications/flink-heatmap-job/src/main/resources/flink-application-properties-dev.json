@@ -1,0 +1,10 @@
+[
+  {
+    "PropertyGroupId": "FlinkApplicationProperties",
+    "PropertyMap": {
+      "KINESIS_STREAM_ARN": "arn:aws:kinesis:ap-northeast-2:123456789012:stream/demo",
+      "CURATED_S3_PATH": "s3://bucket/curated/",
+      "AWS_REGION": "ap-northeast-2"
+    }
+  }
+]

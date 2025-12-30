@@ -1,9 +1,4 @@
 import React, { useMemo, useState } from 'react'
-import Papa from 'papaparse'
-import { StartQueryExecutionCommand, GetQueryExecutionCommand } from '@aws-sdk/client-athena'
-import { GetObjectCommand } from '@aws-sdk/client-s3'
-import { makeAthenaClient, makeS3Client } from './aws'
-import { bodyToString, parseS3Uri } from './utils'
 import { HeatmapCanvas } from './HeatmapCanvas'
 
 type Row = { grid_x: number; grid_y: number; clicks: number }
@@ -12,13 +7,13 @@ const REGION = import.meta.env.VITE_AWS_REGION || 'ap-northeast-2'
 const WORKGROUP = import.meta.env.VITE_ATHENA_WORKGROUP || 'primary'
 const DATABASE = import.meta.env.VITE_GLUE_DATABASE || ''
 const TABLE = import.meta.env.VITE_GLUE_TABLE || ''
+const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
 
-const accessKeyId = import.meta.env.VITE_AWS_ACCESS_KEY_ID || ''
-const secretAccessKey = import.meta.env.VITE_AWS_SECRET_ACCESS_KEY || ''
-const sessionToken = import.meta.env.VITE_AWS_SESSION_TOKEN || ''
-
-function credsOk() {
-    return !!(accessKeyId && secretAccessKey)
+function apiUrl(path: string) {
+    if (!API_BASE) return path
+    if (API_BASE.endsWith('/') && path.startsWith('/')) return `${API_BASE.slice(0, -1)}${path}`
+    if (!API_BASE.endsWith('/') && !path.startsWith('/')) return `${API_BASE}/${path}`
+    return `${API_BASE}${path}`
 }
 
 function defaultQuery(db: string, table: string) {
@@ -60,82 +55,44 @@ export default function App() {
 
     async function run() {
         setError('')
-        setStatus('Starting query...')
+        setStatus('Sending query...')
         setRows([])
         setQueryId('')
 
-        if (!credsOk()) {
-            setError('Missing AWS credentials (.env).')
-            setStatus('Error')
-            return
-        }
         if (!database || !table) {
             setError('Set database + table first (from Glue/Athena).')
             setStatus('Error')
             return
         }
 
-        const creds = { accessKeyId, secretAccessKey, sessionToken: sessionToken || undefined }
-        const athena = makeAthenaClient(region, creds)
-        const s3 = makeS3Client(region, creds)
+        const res = await fetch(apiUrl('/api/query'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                query,
+                region,
+                workgroup,
+                database,
+                table,
+            }),
+        })
 
-        const start = await athena.send(
-            new StartQueryExecutionCommand({
-                QueryString: query,
-                WorkGroup: workgroup,
-                QueryExecutionContext: { Database: database },
-            })
-        )
-
-        const qid = start.QueryExecutionId
-        if (!qid) throw new Error('No QueryExecutionId returned')
-        setQueryId(qid)
-
-        let outputLocation = ''
-        let succeeded = false
-        for (let i = 0; i < 60; i++) {
-            setStatus(`Polling Athena... (${i + 1}/60)`)
-            await new Promise((r) => setTimeout(r, 2000))
-
-            const res = await athena.send(new GetQueryExecutionCommand({ QueryExecutionId: qid }))
-            const st = res.QueryExecution?.Status?.State
-            const reason = res.QueryExecution?.Status?.StateChangeReason
-
-            if (st === 'SUCCEEDED') {
-                outputLocation = res.QueryExecution?.ResultConfiguration?.OutputLocation || ''
-                succeeded = true
-                setStatus('SUCCEEDED. Downloading result...')
-                break
-            }
-            if (st === 'FAILED' || st === 'CANCELLED') {
-                throw new Error(`Athena ${st}: ${reason || 'unknown reason'}`)
+        const raw = await res.text()
+        let payload: any = {}
+        if (raw) {
+            try {
+                payload = JSON.parse(raw)
+            } catch (e) {
+                throw new Error(`Backend returned non-JSON response (status ${res.status})`)
             }
         }
-
-        if (!succeeded) {
-            throw new Error('Athena query timed out. Try again or narrow the time range.')
-        }
-        if (!outputLocation) {
-            throw new Error('No OutputLocation. Ensure Athena workgroup has results bucket configured.')
+        if (!res.ok) {
+            throw new Error(payload?.error || `Backend error (status ${res.status})`)
         }
 
-        const { bucket, key } = parseS3Uri(outputLocation)
-        const obj = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
-        const csv = await bodyToString(obj.Body)
-
-        const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true })
-        const out: Row[] = []
-        for (const r of parsed.data as any[]) {
-            const gx = Number(r.grid_x ?? 0)
-            const gy = Number(r.grid_y ?? 0)
-            const clicks = Number(r.clicks ?? 0)
-            if (Number.isFinite(gx) && Number.isFinite(gy) && Number.isFinite(clicks)) {
-                out.push({ grid_x: gx, grid_y: gy, clicks })
-            }
-        }
-
-        setRows(out)
-        setStatus(`Done. Rows=${out.length}`)
+        setQueryId(payload.queryId || '')
+        setRows(payload.rows || [])
+        setStatus(`Done. Rows=${payload.rows?.length || 0}`)
     }
 
     return (
@@ -153,7 +110,9 @@ export default function App() {
                 >
                     <div>
                         <div style={{ fontSize: 18, fontWeight: 'bold' }}>Athena Heatmap Viewer (Last 1 hour)</div>
-                        <div style={{ fontSize: 13, color: '#666' }}>Athena query → S3 CSV → render heatmap.</div>
+                        <div style={{ fontSize: 13, color: '#666' }}>
+                            Backend API → Athena → S3 CSV → render heatmap.
+                        </div>
                     </div>
                     <button
                         onClick={() =>

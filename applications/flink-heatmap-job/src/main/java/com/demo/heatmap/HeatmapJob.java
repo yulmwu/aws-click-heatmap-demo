@@ -1,127 +1,96 @@
 package com.demo.heatmap;
 
+import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.time.ZoneId;
 import java.util.Optional;
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericRecord;
+import java.util.Properties;
+import java.util.Set;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.kinesis.source.KinesisStreamsSource;
 import org.apache.flink.connector.kinesis.source.config.KinesisStreamsSourceConfigConstants;
+import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.avro.AvroParquetWriters;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HeatmapJob {
 
     private static final int GRID_SIZE = 20;
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final String APP_PROPERTIES_PATH = "/etc/flink/application_properties.json";
+    private static final String LOCAL_APPLICATION_PROPERTIES_RESOURCE = "flink-application-properties-dev.json";
+    private static final String APPLICATION_CONFIG_GROUP = "FlinkApplicationProperties";
+    private static final Logger LOG = LoggerFactory.getLogger(HeatmapJob.class);
 
-    private static Map<String, String> loadAppProperties() {
-        try {
-            if (!Files.exists(Paths.get(APP_PROPERTIES_PATH))) {
-                return Map.of();
-            }
-            JsonNode root = MAPPER.readTree(Files.newBufferedReader(Paths.get(APP_PROPERTIES_PATH)));
-            Map<String, String> out = new HashMap<>();
-            if (root.isObject()) {
-                JsonNode group = root.get("FlinkApplicationProperties");
-                if (group != null && group.isObject()) {
-                    group.fields().forEachRemaining(entry -> out.put(entry.getKey(), entry.getValue().asText()));
-                    return out;
-                }
-                JsonNode groups = root.get("PropertyGroups");
-                if (groups == null) {
-                    groups = root.get("propertyGroups");
-                }
-                if (groups != null && groups.isArray()) {
-                    readGroupsArray(groups, out);
-                    return out;
-                }
-                if (isGroupNode(root)) {
-                    readGroup(root, out);
-                    return out;
-                }
-            } else if (root.isArray()) {
-                readGroupsArray(root, out);
-                return out;
-            }
-            return out;
-        } catch (Exception e) {
-            return Map.of();
-        }
+    private static boolean isLocal(StreamExecutionEnvironment env) {
+        return env instanceof LocalStreamEnvironment;
     }
 
-    private static void readGroupsArray(JsonNode groups, Map<String, String> out) {
-        for (JsonNode item : groups) {
-            String groupId = getGroupId(item);
-            if ("FlinkApplicationProperties".equals(groupId)) {
-                readGroup(item, out);
-                return;
-            }
+    private static java.util.Map<String, Properties> loadApplicationProperties(StreamExecutionEnvironment env) throws IOException {
+        if (isLocal(env)) {
+            java.net.URL resource = HeatmapJob.class.getClassLoader().getResource(LOCAL_APPLICATION_PROPERTIES_RESOURCE);
+            Preconditions.checkNotNull(resource, "Local application properties resource not found");
+            return KinesisAnalyticsRuntime.getApplicationProperties(
+                resource.getPath());
         }
+        return KinesisAnalyticsRuntime.getApplicationProperties();
     }
 
-    private static void readGroup(JsonNode group, Map<String, String> out) {
-        JsonNode propertyMap = group.get("propertyMap");
-        if (propertyMap == null) {
-            propertyMap = group.get("PropertyMap");
+    private static Properties selectApplicationProperties(java.util.Map<String, Properties> applicationProperties) {
+        if (applicationProperties == null || applicationProperties.isEmpty()) {
+            throw new IllegalArgumentException("Application properties not found");
         }
-        if (propertyMap == null) {
-            propertyMap = group.get("property_map");
+        Properties props = applicationProperties.get(APPLICATION_CONFIG_GROUP);
+        if (props != null) {
+            return props;
         }
-        if (propertyMap != null && propertyMap.isObject()) {
-            propertyMap.fields().forEachRemaining(entry -> out.put(entry.getKey(), entry.getValue().asText()));
+        if (applicationProperties.size() == 1) {
+            return applicationProperties.values().iterator().next();
         }
+        throw new IllegalArgumentException("Application properties group not found: " + APPLICATION_CONFIG_GROUP);
     }
 
-    private static boolean isGroupNode(JsonNode node) {
-        return getGroupId(node) != null && (node.has("propertyMap") || node.has("PropertyMap") || node.has("property_map"));
-    }
-
-    private static String getGroupId(JsonNode node) {
-        JsonNode groupId = node.get("propertyGroupId");
-        if (groupId == null) {
-            groupId = node.get("PropertyGroupId");
+    private static String getRequiredProperty(Properties properties, String key) {
+        String value = properties.getProperty(key);
+        if (value == null) value = properties.getProperty(key.toUpperCase());
+        if (value == null) value = properties.getProperty(key.toLowerCase());
+        if (value == null) value = properties.getProperty(key.replace('_', '.'));
+        if (value == null) value = properties.getProperty(key.replace('_', '.').toLowerCase());
+        if (value == null) {
+            Set<String> keys = properties.stringPropertyNames();
+            throw new IllegalArgumentException(key + " is required. Available keys=" + keys);
         }
-        if (groupId == null) {
-            groupId = node.get("property_group_id");
-        }
-        if (groupId != null && groupId.isTextual()) {
-            return groupId.asText();
-        }
-        return null;
+        return value;
     }
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(60000);
 
-        ParameterTool parameters = ParameterTool.fromSystemProperties()
-            .mergeWith(ParameterTool.fromMap(System.getenv()))
-            .mergeWith(ParameterTool.fromMap(loadAppProperties()))
-            .mergeWith(ParameterTool.fromArgs(args));
-        env.getConfig().setGlobalJobParameters(parameters);
+        java.util.Map<String, Properties> applicationProperties = loadApplicationProperties(env);
+        LOG.info("Application properties groups: {}", applicationProperties.keySet());
+        Properties props = selectApplicationProperties(applicationProperties);
 
-        String streamArn = parameters.getRequired("KINESIS_STREAM_ARN");
-        String awsRegion = parameters.get("AWS_REGION", "ap-northeast-2");
+        String streamArn = getRequiredProperty(props, "KINESIS_STREAM_ARN");
+        String awsRegion = props.getProperty("AWS_REGION", "ap-northeast-2");
         System.setProperty("aws.region", awsRegion);
         Configuration sourceConfig = new Configuration();
+        sourceConfig.setString(AWSConfigConstants.AWS_REGION, awsRegion);
         sourceConfig.set(KinesisStreamsSourceConfigConstants.STREAM_INITIAL_POSITION,
             KinesisStreamsSourceConfigConstants.InitialPosition.LATEST);
         sourceConfig.set(KinesisStreamsSourceConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS, 10000L);
@@ -134,7 +103,7 @@ public class HeatmapJob {
                 .build();
 
         DataStream<HeatmapAggregate> aggregated =
-            env.fromSource(source, WatermarkStrategy.noWatermarks(), "kinesis-source")
+            env.fromSource(source, WatermarkStrategy.noWatermarks(), "kinesis-source", Types.STRING)
                 .flatMap((String json, org.apache.flink.util.Collector<HeatmapAggregate> out) -> {
                     Optional<HeatmapAggregate> agg = parseEvent(json);
                     agg.ifPresent(out::collect);
@@ -149,39 +118,19 @@ public class HeatmapJob {
                     return agg1;
                 });
 
-        String outputPath = parameters.getRequired("CURATED_S3_PATH");
+        String outputPath = getRequiredProperty(props, "CURATED_S3_PATH");
         if (!outputPath.endsWith("/")) outputPath += "/";
         if (!outputPath.endsWith("curated_heatmap/")) {
             outputPath += "curated_heatmap/";
         }
         
-        Schema avroSchema = new Schema.Parser().parse(
-            "{\"type\":\"record\",\"name\":\"HeatmapAggregate\",\"namespace\":\"com.demo.heatmap\"," +
-            "\"fields\":[" +
-            "{\"name\":\"page_id\",\"type\":\"string\"}," +
-            "{\"name\":\"grid_x\",\"type\":\"int\"}," +
-            "{\"name\":\"grid_y\",\"type\":\"int\"}," +
-            "{\"name\":\"window_start\",\"type\":\"long\"}," +
-            "{\"name\":\"window_end\",\"type\":\"long\"}," +
-            "{\"name\":\"clicks\",\"type\":\"long\"}" +
-            "]}"
-        );
-
-        FileSink<GenericRecord> sink = FileSink
-            .forBulkFormat(new Path(outputPath), AvroParquetWriters.forGenericRecord(avroSchema))
+        FileSink<HeatmapAggregate> sink = FileSink
+            .forBulkFormat(new Path(outputPath), AvroParquetWriters.forReflectRecord(HeatmapAggregate.class))
+            .withBucketAssigner(new DateTimeBucketAssigner<>("'partition_0='yyyy-MM-dd-HH", ZoneId.of("UTC")))
             .withRollingPolicy(OnCheckpointRollingPolicy.build())
             .build();
 
-        aggregated.map(agg -> {
-            GenericRecord record = new GenericData.Record(avroSchema);
-            record.put("page_id", agg.pageId);
-            record.put("grid_x", agg.gridX);
-            record.put("grid_y", agg.gridY);
-            record.put("window_start", agg.windowStart);
-            record.put("window_end", agg.windowEnd);
-            record.put("clicks", agg.clicks);
-            return record;
-        }).sinkTo(sink);
+        aggregated.sinkTo(sink);
 
         env.execute("heatmap-flink-job");
     }

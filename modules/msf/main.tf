@@ -132,13 +132,12 @@ resource "aws_kinesisanalyticsv2_application" "this" {
   cloudwatch_logging_options {
     log_stream_arn = aws_cloudwatch_log_stream.app.arn
   }
-
-  tags = merge(var.tags, { Name = var.app_name })
 }
 
 resource "aws_cloudwatch_log_group" "app" {
   name = "/aws/kinesis-analytics/${var.app_name}"
   tags = merge(var.tags, { Name = "/aws/kinesis-analytics/${var.app_name}" })
+  retention_in_days = 1
 }
 
 resource "aws_cloudwatch_log_stream" "app" {
